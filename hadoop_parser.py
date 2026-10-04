@@ -1,4 +1,5 @@
 import re
+import pandas as pd
 
 HDFS_Pattern = r'(\d{6}) (\d{6}) (\d+) (\S+) (\S+) (.*) (blk_-?\d+)'
 
@@ -33,3 +34,6 @@ with open("basicDatasets/Log Anomaly Detection/HDFS.log", "r") as file:
 
 print(f"parsed {len(events)} lines, skipped {skipped}")
 print(events[0])
+
+df = pd.DataFrame(events)
+df.to_csv("HDFS_Parsed.csv")
