@@ -1,1 +1,4 @@
 basicDatasets/
+
+# Change if file name for hadoop_parser csv convert changes
+HDFS_Parsed
