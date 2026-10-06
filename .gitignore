@@ -1,4 +1,6 @@
 basicDatasets/
 
-# Change if file name for hadoop_parser csv convert changes
+# Change if file name for csv creation changes
 HDFS_Parsed.csv
+HDFS_Templated.csv
+hdfs_traces_labeled.pkl
