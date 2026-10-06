@@ -2,14 +2,24 @@ import re
 import pandas as pd
 
 # Regex pattern for HDFS logs
-HDFS_Pattern = r'(\d{6}) (\d{6}) (\d+) (\S+) (\S+) (.*) (blk_-?\d+)'
+HDFS_Pattern = r'(\d{6}) (\d{6}) (\d+) (\S+) (\S+) (.*)'
+
+# Sub regex patterns for blk and IP extraction
+blk_pattern = r'(blk_-?\d+)'
+srcIP_pattern = r'src:\s*(\S+)'
+dstIP_pattern = r'dest:\s*(\S+)'
 
 # Matching groups from regex
 def parse_HDFS(lines):
     m = re.match(HDFS_Pattern, lines)
     if not m:
         return None
-    date, time, pid, level, component, message, blockId = m.groups()
+    date, time, pid, level, component, message = m.groups()
+
+    def sub_pattern(pattern, text):
+        n = re.search(pattern, text)
+        return n.group(1) if n else None
+
     return {
         "date": date,
         "time": time,
@@ -17,7 +27,9 @@ def parse_HDFS(lines):
         "level": level,
         "component": component,
         "message": message,
-        "blockId": blockId,
+        "blockId": sub_pattern(blk_pattern, message),
+        "sourceIP": sub_pattern(srcIP_pattern, message),
+        "destinationIP": sub_pattern(dstIP_pattern, message),
     }
 
 # Event and skipped line counter
@@ -42,4 +54,4 @@ print(events[0])
 
 # Log to csv converter
 df = pd.DataFrame(events)
-df.to_csv("HDFS_Parsed.csv")
+df.to_csv("HDFS_Parsed.csv", index = False)
