@@ -4,3 +4,6 @@ basicDatasets/
 HDFS_Parsed.csv
 HDFS_Templated.csv
 hdfs_traces_labeled.pkl
+
+# add file type exclusion
+*.png
