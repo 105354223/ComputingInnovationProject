@@ -2,7 +2,7 @@ import re
 import pandas as pd
 
 # Regex pattern for HDFS logs
-HDFS_Pattern = r'(\d{6}) (\d{6}) (\d+) (\S+) (\S+) (.*)'
+HDFS_pattern = r'(\d{6}) (\d{6}) (\d+) (\S+) (\S+) (.*)'
 
 # Sub regex patterns for blk and IP extraction
 blk_pattern = r'(blk_-?\d+)'
@@ -11,7 +11,7 @@ dstIP_pattern = r'dest:\s*(\S+)'
 
 # Matching groups from regex
 def parse_HDFS(lines):
-    m = re.match(HDFS_Pattern, lines)
+    m = re.match(HDFS_pattern, lines)
     if not m:
         return None
     date, time, pid, level, component, message = m.groups()

@@ -1,12 +1,8 @@
 basicDatasets/
 
-# Change if file name for csv creation changes
-HDFS_Parsed.csv
-HDFS_Templated.csv
-hdfs_traces_labeled.pkl
-
 # add file type exclusion
 *.png
 *.joblib
 *.pkl
 *.txt
+*.csv
