@@ -7,3 +7,5 @@ hdfs_traces_labeled.pkl
 
 # add file type exclusion
 *.png
+*.joblib
+*.pkl
