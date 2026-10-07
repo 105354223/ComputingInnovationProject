@@ -1,0 +1,11 @@
+name: COS30049
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - joblib

@@ -1,4 +1,4 @@
-basicDatasets/
+/basicDatasets
 
 # add file type exclusion
 *.png
