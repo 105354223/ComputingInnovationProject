@@ -39,17 +39,13 @@ TSNE_SAMPLE    = 10_000
 
 EVENT_IDS_OF_INTEREST = [0, 8, 9, 10, 25, 31, 39, 49, 51, 54]
 
-
-# =====================================================================
-# Shared loading and feature construction
-# =====================================================================
-
+# load traces produced by durring preprocessing script
 def load_traces() -> pd.DataFrame:
     traces_df = pd.read_pickle(TRACES_PATH)
     print(f"loaded {len(traces_df):,} traces from {TRACES_PATH}")
     return traces_df
 
-
+# load templated events and event ids
 def load_templated_events() -> tuple[pd.DataFrame, dict[int, str]]:
     df = pd.read_csv(TEMPLATED_PATH, dtype=str)
     df["event_id"] = df["event_id"].astype(int)
@@ -61,9 +57,8 @@ def load_templated_events() -> tuple[pd.DataFrame, dict[int, str]]:
     print(f"loaded {len(df):,} events, vocab size {len(vocab)}")
     return df, vocab
 
-
+# creates features from each trace ceated in preprocessing like bag events, lengths, unique, first and last events
 def build_features(traces_df: pd.DataFrame) -> pd.DataFrame:
-
     traces_df = traces_df.copy()
     traces_df["length"]      = traces_df["sequence"].apply(len)
     traces_df["n_unique"]    = traces_df["sequence"].apply(lambda s: len(set(s)))
@@ -86,20 +81,16 @@ def build_features(traces_df: pd.DataFrame) -> pd.DataFrame:
         ["blockId", "length", "n_unique", "first_event", "last_event", "label"]
     ].merge(bag, on="blockId", how="left")
 
-    print(f"feature matrix: {features.shape}")
+    # print(f"feature matrix: {features.shape}")
     return features
 
 
 def print_event_templates(vocab: dict[int, str]) -> None:
-    print("\nEvent template lookup")
+    # print("\nEvent template lookup")
     for eid in EVENT_IDS_OF_INTEREST:
         print(f"  event_{eid}: {vocab.get(eid, 'NOT FOUND')}")
 
-
-# =====================================================================
-# Analysis 1: Classification (supervised)
-# =====================================================================
-
+# standardise classifier PCA
 def make_pipeline(model) -> Pipeline:
     return Pipeline([
         ("scaler", StandardScaler()),
@@ -107,7 +98,7 @@ def make_pipeline(model) -> Pipeline:
         ("model", model),
     ])
 
-
+# comarpison of each classifier
 def build_model_dict() -> dict:
     return {
         "logistic": LogisticRegression(max_iter=1000, class_weight="balanced"),
@@ -122,22 +113,21 @@ def build_model_dict() -> dict:
         "gb":       GradientBoostingClassifier(random_state=RANDOM_STATE),
     }
 
-
+# supervised classification function
 def run_classification(features: pd.DataFrame) -> None:
-    print("CLASSIFICATION")
 
     le = LabelEncoder()
     y = le.fit_transform(features["label"])
     X = features.drop(columns=["blockId", "label"])
-    print(f"X shape: {X.shape}")
-    print(f"class balance: {dict(zip(le.classes_, np.bincount(y)))}")
+    # print(f"X shape: {X.shape}")
+    # print(f"class balance: {dict(zip(le.classes_, np.bincount(y)))}")
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, stratify=y, random_state=RANDOM_STATE
     )
 
     cv = StratifiedKFold(5, shuffle=True, random_state=RANDOM_STATE)
-    print(f"\n{'model':<10} {'F1':>7} {'±std':>7}  {'acc':>7} {'prec':>7} {'rec':>7}")
+    # print(f"\n{'model':<10} {'F1':>7} {'±std':>7}  {'acc':>7} {'prec':>7} {'rec':>7}")
     for name, m in build_model_dict().items():
         s = cross_validate(
             make_pipeline(m), X_train, y_train, cv=cv,
@@ -156,7 +146,7 @@ def run_classification(features: pd.DataFrame) -> None:
         pipe = make_pipeline(m)
         pipe.fit(X_train, y_train)
         p = pipe.predict(X_test)
-        print(f"\n--- {name} ---")
+        print(f"\n{name}")
         print(classification_report(y_test, p, target_names=le.classes_))
         print(confusion_matrix(y_test, p))
 
@@ -171,17 +161,12 @@ def run_classification(features: pd.DataFrame) -> None:
     print("\nTop 10 features (raw forest, no PCA):")
     print(imp.round(4))
 
-    # After training the best classifier on the full training set
     best_pipe = make_pipeline(build_model_dict()['forest'])
-    best_pipe.fit(X, y)                                # fit on all data
+    best_pipe.fit(X, y)
     joblib.dump(best_pipe, 'hdfs_model.joblib')
     print("saved hdfs_model.joblib")
 
-
-# =====================================================================
-# Analysis 2: Clustering (unsupervised, within Anomaly class)
-# =====================================================================
-
+# unsipervised clustering for anomalies
 def run_clustering(features: pd.DataFrame,
                    templated_df: pd.DataFrame,
                    vocab: dict[int, str]) -> None:
@@ -253,14 +238,13 @@ def run_clustering(features: pd.DataFrame,
             cluster_mean = members.mean()
             diff = (cluster_mean - overall_mean).abs().sort_values(ascending=False)
 
-            header = f"\n--- Cluster {c} (n={len(members)}) ---"
+            header = f"\nCluster {c} (n={len(members)})"
             print(header)
             f.write(header + "\n")
 
             for feat in diff.head(5).index:
-                arrow = "↑" if cluster_mean[feat] > overall_mean[feat] else "↓"
                 line = (
-                    f"  {arrow} {feat:15s}  "
+                    f"  {feat:15s}  "
                     f"cluster={cluster_mean[feat]:8.3f}  "
                     f"overall={overall_mean[feat]:8.3f}"
                 )
@@ -275,11 +259,7 @@ def run_clustering(features: pd.DataFrame,
         for m in msgs[:8]:
             print("  ", m)
 
-
-# =====================================================================
-# Entry point
-# =====================================================================
-
+# load data and build model
 def main() -> None:
     traces_df = load_traces()
     templated_df, vocab = load_templated_events()

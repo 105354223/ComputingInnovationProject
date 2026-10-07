@@ -14,6 +14,7 @@ print(f"unique PIDs: {df['pid'].nunique()}")
 
 df['event_id'] = df['event_id'].astype(int)
 
+# aggregates events via PID from preprocessing
 session_summary = df.groupby('pid').agg(
     length=('event_id', 'size'),
     n_unique=('event_id', 'nunique'),
@@ -34,9 +35,10 @@ session_summary = session_summary.merge(level_counts, on='pid', how='left')
 session_summary['frac_E'] = session_summary['count_E'] / session_summary['length']
 session_summary['frac_W'] = session_summary['count_W'] / session_summary['length']
 
-print(f"sessions: {len(session_summary)}")
-print(session_summary.head())
+# print(f"sessions: {len(session_summary)}")
+# print(session_summary.head())
 
+# excludes raw error counts as it interferes with distance models
 bag = (
     df.groupby(['pid', 'event_id'])
       .size()
@@ -62,6 +64,7 @@ print(f"X shape (model input): {X.shape}")
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
+# unsupervisede isolation forest
 iso = IsolationForest(n_estimators=200, contamination=0.05,
                       random_state=42, n_jobs=-1)
 iso.fit(X_scaled)
@@ -69,9 +72,9 @@ iso.fit(X_scaled)
 features['anomaly_score'] = iso.decision_function(X_scaled)
 features['is_anomaly']    = (iso.predict(X_scaled) == -1).astype(int)
 
-print(f"\nflagged anomalies: {features['is_anomaly'].sum()} / {len(features)}")
+# print(f"\nflagged anomalies: {features['is_anomaly'].sum()} / {len(features)}")
 features.to_csv('Android_Sessions_Scored.csv', index=False)
-print("wrote Android_Sessions_Scored.csv")
+# print("wrote Android_Sessions_Scored.csv")
 
 plt.figure(figsize=(10, 4))
 plt.hist(features['anomaly_score'], bins=40, edgecolor='black')
@@ -83,7 +86,7 @@ plt.title('Anomaly score distribution across Android sessions')
 plt.legend()
 plt.savefig('android_anomaly_scores.png', dpi=140, bbox_inches='tight')
 plt.close()
-print("saved android_anomaly_scores.png")
+# print("saved android_anomaly_scores.png")
 
 summary_feats = ['n_unique', 'tag_diversity', 'frac_E', 'frac_W']
 profile = features.groupby('is_anomaly')[summary_feats].mean().T
@@ -94,7 +97,7 @@ plt.xlabel('Mean value')
 plt.tight_layout()
 plt.savefig('android_profile.png', dpi=140, bbox_inches='tight')
 plt.close()
-print("saved android_profile.png")
+# print("saved android_profile.png")
 
 overall = features[summary_feats].mean()
 anom = features[features['is_anomaly'] == 1][summary_feats].mean()
@@ -110,7 +113,7 @@ plt.axvline(0, color='black', linewidth=0.8)
 plt.tight_layout()
 plt.savefig('android_deviations.png', dpi=140, bbox_inches='tight')
 plt.close()
-print("saved android_deviations.png")
+# print("saved android_deviations.png")
 
 results = {}
 for c in [0.01, 0.05, 0.10]:
@@ -128,7 +131,7 @@ print(f"1% ⊂ 5%: {results[0.01].issubset(results[0.05])}")
 print(f"5% ⊂ 10%: {results[0.05].issubset(results[0.10])}")
 
 flagged_pids = features[features['is_anomaly'] == 1]['pid'].tolist()
-print(f"\nflagged PIDs ({len(flagged_pids)}): {sorted(flagged_pids)}")
+# print(f"\nflagged PIDs ({len(flagged_pids)}): {sorted(flagged_pids)}")
 
 for pid in flagged_pids[:5]:
     print(f"\nPID {pid}")

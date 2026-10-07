@@ -3,8 +3,6 @@ import sys
 import time
 from pathlib import Path
 
-
-# (script path, human-readable description)
 STAGES = [
     ("hadoop_parser.py",          "Parse HDFS raw log"),
     ("hadoop_preprocessing.py",    "Template HDFS events and build traces"),
@@ -42,7 +40,6 @@ def format_duration(seconds: float) -> str:
     minutes, secs = divmod(int(seconds), 60)
     return f"{minutes}m {secs}s"
 
-
 def main() -> None:
     print("Log Anomaly Detection Pipeline")
     print(f"Running {len(STAGES)} stages\n")
@@ -61,7 +58,6 @@ def main() -> None:
 
     total = time.time() - overall_start
 
-    # ---- Summary ----
     print("PIPELINE COMPLETE")
     for script, elapsed in timings:
         print(f"  {script:<28} {format_duration(elapsed):>10}")
