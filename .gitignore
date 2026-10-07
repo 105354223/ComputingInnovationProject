@@ -9,3 +9,4 @@ hdfs_traces_labeled.pkl
 *.png
 *.joblib
 *.pkl
+*.txt
