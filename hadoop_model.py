@@ -1,26 +1,3 @@
-"""
-hdfs_modeling.py
-
-Classification and clustering of HDFS block traces.
-
-Pipeline:
-    raw log  →  hdfs_parser.py        →  HDFS_Parsed.csv
-    HDFS_Parsed.csv  →  hdfs_preprocessor.py  →  HDFS_Templated.csv
-    HDFS_Templated.csv + hdfs_traces_labeled.pkl  →  this script
-
-This script runs two analyses on the same trace data:
-
-  1. CLASSIFICATION (supervised, uses labels)
-     - Six classifiers compared via 5-fold CV
-     - Best models evaluated on a held-out test set
-     - Feature importance reported to explain what drives predictions
-
-  2. CLUSTERING (unsupervised, within the Anomaly class only)
-     - KMeans on anomaly traces
-     - Each cluster described by feature profile vs. overall
-     - Examples printed for interpretation
-"""
-
 import warnings
 import joblib
 from pathlib import Path
@@ -52,8 +29,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
-# ---- Config ----
 TRACES_PATH    = Path("hdfs_traces_labeled.pkl")
 TEMPLATED_PATH = Path("HDFS_Templated.csv")
 
@@ -62,8 +37,6 @@ TEST_SIZE      = 0.30
 N_CLUSTERS     = 3
 TSNE_SAMPLE    = 10_000
 
-# Event IDs whose template strings we want to print in the report.
-# (These came from the feature-importance and cluster analyses.)
 EVENT_IDS_OF_INTEREST = [0, 8, 9, 10, 25, 31, 39, 49, 51, 54]
 
 
@@ -72,14 +45,12 @@ EVENT_IDS_OF_INTEREST = [0, 8, 9, 10, 25, 31, 39, 49, 51, 54]
 # =====================================================================
 
 def load_traces() -> pd.DataFrame:
-    """Load the labeled HDFS traces (one row per block)."""
     traces_df = pd.read_pickle(TRACES_PATH)
     print(f"loaded {len(traces_df):,} traces from {TRACES_PATH}")
     return traces_df
 
 
 def load_templated_events() -> tuple[pd.DataFrame, dict[int, str]]:
-    """Load the templated HDFS events and build an event_id → template map."""
     df = pd.read_csv(TEMPLATED_PATH, dtype=str)
     df["event_id"] = df["event_id"].astype(int)
     vocab = (
@@ -92,16 +63,7 @@ def load_templated_events() -> tuple[pd.DataFrame, dict[int, str]]:
 
 
 def build_features(traces_df: pd.DataFrame) -> pd.DataFrame:
-    """Turn each trace into one row of features.
 
-    Features per trace:
-      - length       : number of events
-      - n_unique     : number of distinct event types
-      - first_event  : event_id of the first event
-      - last_event   : event_id of the last event
-      - event_<id>   : count of event <id> in the trace (bag-of-events)
-      - label        : ground-truth class
-    """
     traces_df = traces_df.copy()
     traces_df["length"]      = traces_df["sequence"].apply(len)
     traces_df["n_unique"]    = traces_df["sequence"].apply(lambda s: len(set(s)))
@@ -129,8 +91,7 @@ def build_features(traces_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def print_event_templates(vocab: dict[int, str]) -> None:
-    """Print template strings for the event IDs referenced in the report."""
-    print("\n=== Event template lookup ===")
+    print("\nEvent template lookup")
     for eid in EVENT_IDS_OF_INTEREST:
         print(f"  event_{eid}: {vocab.get(eid, 'NOT FOUND')}")
 
@@ -140,7 +101,6 @@ def print_event_templates(vocab: dict[int, str]) -> None:
 # =====================================================================
 
 def make_pipeline(model) -> Pipeline:
-    """Wrap a classifier with scaling and PCA."""
     return Pipeline([
         ("scaler", StandardScaler()),
         ("pca", PCA(n_components=0.99)),
@@ -149,7 +109,6 @@ def make_pipeline(model) -> Pipeline:
 
 
 def build_model_dict() -> dict:
-    """The set of classifiers to compare."""
     return {
         "logistic": LogisticRegression(max_iter=1000, class_weight="balanced"),
         "qda":      QuadraticDiscriminantAnalysis(reg_param=0.1),
@@ -165,10 +124,7 @@ def build_model_dict() -> dict:
 
 
 def run_classification(features: pd.DataFrame) -> None:
-    """Compare classifiers via CV and evaluate the ensemble on a held-out set."""
-    print("\n" + "=" * 70)
     print("CLASSIFICATION")
-    print("=" * 70)
 
     le = LabelEncoder()
     y = le.fit_transform(features["label"])
@@ -180,7 +136,6 @@ def run_classification(features: pd.DataFrame) -> None:
         X, y, test_size=TEST_SIZE, stratify=y, random_state=RANDOM_STATE
     )
 
-    # ---- 5-fold CV on the training split ----
     cv = StratifiedKFold(5, shuffle=True, random_state=RANDOM_STATE)
     print(f"\n{'model':<10} {'F1':>7} {'±std':>7}  {'acc':>7} {'prec':>7} {'rec':>7}")
     for name, m in build_model_dict().items():
@@ -196,7 +151,6 @@ def run_classification(features: pd.DataFrame) -> None:
             f"{s['test_recall'].mean():>7.4f}"
         )
 
-    # ---- Held-out test set with classification reports ----
     print("\nHeld-out test set (per-model report):")
     for name, m in build_model_dict().items():
         pipe = make_pipeline(m)
@@ -206,7 +160,6 @@ def run_classification(features: pd.DataFrame) -> None:
         print(classification_report(y_test, p, target_names=le.classes_))
         print(confusion_matrix(y_test, p))
 
-    # ---- Feature importance via a raw (non-PCA) forest ----
     forest_raw = RandomForestClassifier(
         n_estimators=200, class_weight="balanced",
         n_jobs=-1, random_state=RANDOM_STATE,
@@ -232,10 +185,7 @@ def run_classification(features: pd.DataFrame) -> None:
 def run_clustering(features: pd.DataFrame,
                    templated_df: pd.DataFrame,
                    vocab: dict[int, str]) -> None:
-    """Cluster the Anomaly traces, describe clusters, and save figures."""
-    print("\n" + "=" * 70)
     print("CLUSTERING (within Anomaly class)")
-    print("=" * 70)
 
     anomaly_df = features[features["label"] == "Anomaly"].copy()
     X_anomaly = anomaly_df.drop(columns=["blockId", "label"])
@@ -247,7 +197,6 @@ def run_clustering(features: pd.DataFrame,
     kmeans = KMeans(n_clusters=N_CLUSTERS, random_state=RANDOM_STATE, n_init=10)
     anomaly_df["cluster"] = kmeans.fit_predict(X_anomaly_s)
 
-    # ---- Figure 1: cluster sizes ----
     anomaly_df["cluster"].value_counts().sort_index().plot.bar()
     plt.title("Cluster sizes (Anomaly traces)")
     plt.xlabel("Cluster")
@@ -256,7 +205,6 @@ def run_clustering(features: pd.DataFrame,
     plt.close()
     print("saved anomaly_cluster_sizes.png")
 
-    # ---- Figure 2: feature profile heatmap ----
     top_features = ["length", "n_unique", "first_event", "last_event",
                     "event_0", "event_10", "event_25", "event_31", "event_51"]
     top_features = [f for f in top_features if f in X_anomaly.columns]
@@ -274,7 +222,6 @@ def run_clustering(features: pd.DataFrame,
     plt.close()
     print("saved anomaly_cluster_profiles.png")
 
-    # ---- Figure 3: t-SNE projection on a subsample ----
     n_sample = min(TSNE_SAMPLE, len(X_anomaly_s))
     idx = np.random.RandomState(RANDOM_STATE).choice(
         len(X_anomaly_s), size=n_sample, replace=False
@@ -296,11 +243,9 @@ def run_clustering(features: pd.DataFrame,
     plt.close()
     print("saved anomaly_cluster_tsne.png")
 
-    # ---- Silhouette (subsample) ----
     sil = silhouette_score(X_anomaly_s[idx], anomaly_df["cluster"].values[idx])
     print(f"silhouette (10k sample): {sil:.4f}")
 
-    # ---- Cluster descriptions ----
     overall_mean = X_anomaly.mean()
     with open("anomaly_cluster_descriptions.txt", "w", encoding="utf-8") as f:
         for c in sorted(anomaly_df["cluster"].unique()):
@@ -323,10 +268,9 @@ def run_clustering(features: pd.DataFrame,
                 f.write(line + "\n")
     print("\nsaved anomaly_cluster_descriptions.txt")
 
-    # ---- Examples: one representative block per cluster ----
     for c in sorted(anomaly_df["cluster"].unique()):
         example_id = anomaly_df[anomaly_df["cluster"] == c]["blockId"].iloc[0]
-        print(f"\n=== Cluster {c} — example block {example_id} ===")
+        print(f"\nCluster {c} — example block {example_id}")
         msgs = templated_df[templated_df["blockId"] == example_id]["message"].tolist()
         for m in msgs[:8]:
             print("  ", m)

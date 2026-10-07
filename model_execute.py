@@ -1,24 +1,3 @@
-"""
-run_all.py
-
-Runs the entire log anomaly detection pipeline end to end.
-
-Order of execution:
-    HDFS:    hdfs_parser  →  hdfs_preprocessor  →  hdfs_modeling
-    Android: android_parser  →  android_preprocessor  →  android_modeling
-
-Each stage is run as a separate Python process. If any stage fails, the
-orchestrator stops and reports which script failed so the error can be
-debugged in isolation.
-
-Prerequisites:
-    conda env create -f environment.yml
-    conda activate <env name>
-
-Usage:
-    python run_all.py
-"""
-
 import subprocess
 import sys
 import time
@@ -38,11 +17,8 @@ STAGES = [
 
 
 def run_stage(script: str, description: str, index: int, total: int) -> float:
-    """Run one pipeline stage and return its elapsed time in seconds."""
-    print(f"\n{'=' * 70}")
     print(f"[{index}/{total}] {description}")
     print(f"  running: {script}")
-    print('=' * 70)
 
     if not Path(script).exists():
         raise FileNotFoundError(f"Script not found: {script}")
@@ -56,12 +32,11 @@ def run_stage(script: str, description: str, index: int, total: int) -> float:
             f"{script} exited with code {result.returncode}"
         )
 
-    print(f"\n  ✓ completed in {elapsed:.1f}s")
+    print(f"\ncompleted in {elapsed:.1f}s")
     return elapsed
 
 
 def format_duration(seconds: float) -> str:
-    """Format a duration as 'Xm Ys' or 'Ys'."""
     if seconds < 60:
         return f"{seconds:.1f}s"
     minutes, secs = divmod(int(seconds), 60)
@@ -80,19 +55,16 @@ def main() -> None:
             elapsed = run_stage(script, description, i, len(STAGES))
             timings.append((script, elapsed))
     except (FileNotFoundError, RuntimeError) as e:
-        print(f"\n✗ PIPELINE FAILED: {e}")
+        print(f"\nPIPELINE FAILED: {e}")
         print(f"  (ran {len(timings)} of {len(STAGES)} stages)")
         sys.exit(1)
 
     total = time.time() - overall_start
 
     # ---- Summary ----
-    print(f"\n{'=' * 70}")
     print("PIPELINE COMPLETE")
-    print('=' * 70)
     for script, elapsed in timings:
         print(f"  {script:<28} {format_duration(elapsed):>10}")
-    print(f"  {'-' * 40}")
     print(f"  {'TOTAL':<28} {format_duration(total):>10}")
     print(f"\nOutputs written to the project directory.")
 
