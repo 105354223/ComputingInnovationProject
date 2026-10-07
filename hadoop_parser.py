@@ -9,7 +9,7 @@ blk_pattern = r'(blk_-?\d+)'
 srcIP_pattern = r'src:\s*(\S+)'
 dstIP_pattern = r'dest:\s*(\S+)'
 
-# Matching groups from regex
+# Matches regex pattern to groups to be distinguished
 def parse_HDFS(lines):
     m = re.match(HDFS_pattern, lines)
     if not m:
@@ -36,7 +36,7 @@ def parse_HDFS(lines):
 events = []
 skipped = 0
 
-# Loop for event and skipped counter
+# Loop for event and skipped counters
 with open("basicDatasets/Log Anomaly Detection/HDFS.log", "r") as file:
     for lines in file:
         lines = lines.rstrip("\r\n")
@@ -49,8 +49,8 @@ with open("basicDatasets/Log Anomaly Detection/HDFS.log", "r") as file:
         events.append(parsed)
 
 # Print skipped and events passed
-print(f"parsed {len(events)} lines, skipped {skipped}")
-print(events[0])
+# print(f"parsed {len(events)} lines, skipped {skipped}")
+# print(events[0])
 
 # Log to csv converter
 df = pd.DataFrame(events)

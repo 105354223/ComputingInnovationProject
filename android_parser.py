@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 
+# Regex pattern for Android Logs
 android_pattern = (
     r'^(\d{2}-\d{2})\s+'
     r'(\d{2}:\d{2}:\d{2}\.\d{3})\s+'
@@ -11,6 +12,7 @@ android_pattern = (
     r'(.*)$'
 )
 
+# Matches regex pattern to groups to be distinguished
 def parse_android(line):
     m = re.match(android_pattern, line)
     if not m:
@@ -30,6 +32,7 @@ events = []
 skipped = 0
 skipped_samples = []
 
+# Loop for event and skipped counters
 with open("basicDatasets/Android_v1/Android.log", "r",
           encoding="utf-8", errors="replace") as f:
     for line in f:
@@ -44,14 +47,16 @@ with open("basicDatasets/Android_v1/Android.log", "r",
             continue
         events.append(parsed)
 
-print(f"parsed {len(events)} lines, skipped {skipped}")
-if events:
-    print("first event:", events[0])
-if skipped_samples:
-    print("sample skipped:")
-    for s in skipped_samples:
-        print(" ", repr(s))
+# Print skipped and events passed
+# print(f"parsed {len(events)} lines, skipped {skipped}")
+# if events:
+#     print("first event:", events[0])
+# if skipped_samples:
+#     print("sample skipped:")
+#     for s in skipped_samples:
+#         print(" ", repr(s))
 
+# Log to csv converter
 df = pd.DataFrame(events)
 df.to_csv("Android_Parsed.csv", index=False)
-print(f"wrote Android_Parsed.csv with {len(df)} rows")
+# print(f"wrote Android_Parsed.csv with {len(df)} rows")
