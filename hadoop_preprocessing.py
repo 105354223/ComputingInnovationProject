@@ -43,7 +43,7 @@ df['event_id'] = df['template'].map(eventID)
 print(f"eventID size: {len(eventID)}")
 print(list(eventID.items())[:5])
 
-# df.to_csv('HDFS_Templated.csv', index=False)
+df.to_csv('HDFS_Templated.csv', index=False)
 
 traces = (
     df.sort_values('timestamp')
